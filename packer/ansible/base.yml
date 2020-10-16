@@ -1,0 +1,35 @@
+- hosts: all
+  gather_facts: false
+  tasks:
+  - name: Install Windows Features
+    win_feature:
+      name:
+        - RDS-RD-Server
+        - NET-Framework-45-Core
+        - Remote-Assistance
+        - Telnet-Client
+        - RSAT-AD-Tools
+      state: present
+    register: win_feature
+
+  - name: Reboot if features require
+    win_reboot:
+    when: win_feature.reboot_required
+  
+  - name: Add Azure PowerShell Module
+    win_psmodule:
+      name: AZ
+      state: present
+    
+  - name: Install packages
+    win_chocolatey:
+      name:
+        - googlechrome
+        - vscode
+        - 7zip
+        - notepadplusplus
+        - putty
+        - fslogix
+        - windirstat
+      state: present
+

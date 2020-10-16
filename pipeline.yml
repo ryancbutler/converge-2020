@@ -1,0 +1,78 @@
+trigger:
+    - none
+parameters:
+- name: winver
+  displayName: "Windows Version to build"
+  type: string
+  default: "2019-Datacenter"
+  values:
+    - "2016-Datacenter"
+    - "2019-Datacenter"
+- name: vhdname
+  displayName: "Name of gold image VHD"
+  type: string
+  default: "ctx-vda.vhd"
+
+jobs:
+- job: build
+  displayName: "Packer Build"
+  timeoutInMinutes: 240
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - checkout: self
+    clean: true
+    persistCredentials: true
+  - task: UsePythonVersion@0
+    displayName: 'Install Python'
+    inputs:
+      versionSpec: '3.x'
+  - script: |
+      pip install ansible
+      pip install pywinrm
+    displayName: 'Install Ansible and PyWinRM'
+  - task: UseRubyVersion@0
+    displayName: 'Install Ruby'
+    inputs:
+      versionSpec: '>= 2.5'
+      addToPath: true
+  
+  - script: gem install inspec-bin
+    displayName: 'Install Gem inspec-bin'
+    
+  - script: |
+      cd packer
+      packer build -color=false -machine-readable ./vda.json|tee output.log
+      vhd=$(grep azure-arm,artifact,0,string,Azure.ResourceManagement.VMImage output.log | cut -d, -f6|cut -d: -f 8|sed 's/\\nTemplateUri//g'|awk '{print "https:"$0}')
+      az storage blob copy start --account-name $storage_account --destination-container $goldimage_container --source-uri $vhd --account-key $sa_key --destination-blob "${{ parameters.vhdname }}"
+    displayName: 'Running Packer'
+    env:
+      CHECKPOINT_DISABLE: "TRUE"
+      vda: $(vda)
+      vdacontrollers: $(vdacontrollers)
+      rg_name: $(rg_name)
+      client_id: $(client_id)
+      client_secret: $(client_secret)
+      subid: $(subid)
+      tenantid: $(tenantid)
+      storage_account: $(storage_account)
+      sa_key: $(sa_key)
+      media_container: $(media_container)
+      goldimage_container: $(goldimage_container)
+      winver: "${{ parameters.winver }}"
+      location: $(location)
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publishing Hotfix Report'
+    inputs:
+      pathtoPublish: '$(Build.Repository.LocalPath)/packer/hotfix.json'
+      artifactName: installed-updates
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publishing Installed Modules Report'
+    inputs:
+      pathtoPublish: '$(Build.Repository.LocalPath)/packer/package.json'
+      artifactName: ps-modules
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publishing Packer Manifest'
+    inputs:
+      pathtoPublish: '$(Build.Repository.LocalPath)/packer/manifest.json'
+      artifactName: packer-manifest

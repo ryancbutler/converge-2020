@@ -1,0 +1,134 @@
+{
+  "variables": {
+    "client_id": "{{env `client_id`}}",
+    "client_secret": "{{env `client_secret`}}",
+    "subid": "{{env `subid`}}",
+    "tenantid": "{{env `tenantid`}}",
+    "storage_account": "{{env `storage_account`}}",
+    "vdacontrollers": "{{env `vdacontrollers`}}",
+    "vda": "{{env `vda`}}",
+    "sakey": "{{env `sa_key`}}",
+    "media_container": "{{env `media_container`}}",
+    "rg_name": "{{env `rg_name`}}",
+    "winver": "{{env `winver`}}",
+    "location": "{{env `location`}}"
+  },
+  "builders": [
+    {
+      "type": "azure-arm",
+      "client_id": "{{user `client_id`}}",
+      "client_secret": "{{user `client_secret`}}",
+      "subscription_id": "{{user `subid`}}",
+      "tenant_id": "{{user `tenantid`}}",
+      "capture_name_prefix": "ctxvda",
+      "capture_container_name": "goldimages",
+      "storage_account": "{{user `storage_account`}}",
+      "os_type": "Windows",
+      "image_publisher": "MicrosoftWindowsServer",
+      "image_offer": "WindowsServer",
+      "image_sku": "{{user `winver`}}",
+      "communicator": "winrm",
+      "winrm_use_ssl": true,
+      "winrm_insecure": true,
+      "winrm_timeout": "3m",
+      "winrm_username": "packer",
+      "location": "{{user `location`}}",
+      "vm_size": "Standard_DS2_v2",
+      "resource_group_name": "{{user `rg_name`}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "powershell",
+      "inline": ["iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1'))"]
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "--extra-vars",
+        "ansible_winrm_server_cert_validation=ignore",
+        "--extra-vars",
+        "ansible_shell_type=powershell",
+        "--extra-vars",
+        "ansible_shell_executable=None",
+        "-vvv",
+        "--extra-vars", 
+        "winrm_password={{ .WinRMPassword }}"
+      ],
+      "playbook_file": "{{template_dir}}/ansible/base.yml",
+      "user": "packer",
+      "use_proxy": false
+    },
+    {
+      "type": "windows-restart"
+    },
+    {
+      "type": "powershell",
+      "script": "{{template_dir}}/scripts/ctxvda.ps1",
+      "environment_vars":[
+        "vda={{user `vda`}}",
+        "vdacontrollers={{user `vdacontroller`}}",
+        "sakey={{user `sakey`}}",
+        "sacontainer={{user `media_container`}}",
+        "storage_account={{user `storage_account`}}"
+      ]
+    },
+    {
+      "type": "windows-restart"
+    },
+    {
+      "type": "powershell",
+      "script": "{{template_dir}}/scripts/ctxvda.ps1",
+      "environment_vars":[
+        "vda={{user `vda`}}",
+        "vdacontrollers={{user `vdacontroller`}}",
+        "sakey={{user `sakey`}}",
+        "sacontainer={{user `media_container`}}",
+        "storage_account={{user `storage_account`}}"
+      ]
+    },
+    {
+      "type": "windows-restart"
+    },
+    {
+      "type": "powershell",
+      "script": "{{template_dir}}/scripts/ctxoptimizer.ps1",
+      "environment_vars":[
+        "sakey={{user `sakey`}}",
+        "sacontainer={{user `media_container`}}",
+        "storage_account={{user `storage_account`}}"
+      ]
+    },
+    {
+      "type": "powershell",
+      "inline": ["get-hotfix|Select-Object description,hotfixid,caption|sort-object HotFixID|ConvertTo-Json|Out-File 'c:\\windows\\temp\\hotfix.json' -force"]
+    },
+    {
+      "type": "file",
+      "source": "c:\\windows\\temp\\hotfix.json",
+      "destination": "./hotfix.json",
+      "direction": "download"
+    },
+    {
+      "type": "powershell",
+      "inline": ["get-package|Select-Object Name,Version,Source,ProviderName|sort-object Name|ConvertTo-Json|Out-File 'c:\\windows\\temp\\package.json' -force"]
+    },
+    {
+      "type": "file",
+      "source": "c:\\windows\\temp\\package.json",
+      "destination": "./package.json",
+      "direction": "download"
+    },
+    {
+      "type": "inspec",
+      "inspec_env_vars": ["CHEF_LICENSE=accept"],
+      "profile": "./inspec/basic_validation"
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "manifest.json"
+    }
+  ]
+}
