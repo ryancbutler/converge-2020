@@ -1,7 +1,7 @@
 # Overview
 Use an Azure DevOps pipeline to deploy a Windows VDA using HashiCorp Packer.  This produces a gold image ready for Citrix Virtual Apps and Desktops.
 
-This repo is part of my **Citrix Converge 2020** presentation
+This repo is part of my **[Citrix Converge 2020](https://www.citrix.com/blogs/2020/09/02/announcing-citrix-converge-2020-developing-the-future-of-work-together/)** presentation
 
 ## Prerequisite
 You'll need the follwing pre-reqs before getting started.
