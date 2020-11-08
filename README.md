@@ -3,6 +3,8 @@ Use an Azure DevOps pipeline to deploy a Windows VDA using HashiCorp Packer.  Th
 
 This repo is part of my **[Citrix Converge 2020](https://www.citrix.com/blogs/2020/09/02/announcing-citrix-converge-2020-developing-the-future-of-work-together/)** presentation
 
+Full Video Presentation: https://www.youtube.com/watch?v=sKlx9HqI5Rc
+
 ## Prerequisite
 You'll need the follwing pre-reqs before getting started.
 
